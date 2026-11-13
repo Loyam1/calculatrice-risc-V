@@ -1,5 +1,5 @@
 .data
-bienvenue: .asciz "\nbienvenue dans le programme calculatrice en risc-v créer par Loyam (V1)"
+bienvenue: .asciz "\nbienvenue dans le programme calculatrice en risc-v créer par Loyam (V1)\ntu peux entrer des calcul simple de type n(+-*/)n ou des commendes (/help)"
 quel: .asciz "\n\tquel est ton calcul ?\t"
 syntaxe: .asciz "erreur de syntaxe taper /help pour les commendes"
 help: .asciz "/help"
