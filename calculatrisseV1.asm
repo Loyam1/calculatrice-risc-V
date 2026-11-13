@@ -101,9 +101,6 @@ multiplication:			#multiplie si demandé par l'utilisateur
 	call résultat		#cf addition
 	j restart		#cf addition
 
-exposant_cal:			#met a0 a la puissance de a1
-	
-
 division:			#divise si l'utilisateur le demende
 	mv s2,a3		#cf addition
 	call s_c		#cf addition
