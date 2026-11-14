@@ -5,7 +5,6 @@ syntaxe: .asciz "erreur de syntaxe taper /help pour les commendes"
 help: .asciz "/help"
 MChelp: .asciz "/help : affiche cette aide\n/stop : arrette le programe"
 stop: .asciz "/stop"
-#e==>/help	t==>/stop	i==>/historique		
 
 
 .global main
