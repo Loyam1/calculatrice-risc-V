@@ -1,10 +1,11 @@
 .data
-bienvenue: .asciz "\nbienvenue dans le programme calculatrice en risc-v créer par Loyam (V1)\ntu peux entrer des calcul simple de type n(+-*/)n ou des commendes (/help)"
+bienvenue: .asciz "\nbienvenue dans le programme calculatrice en risc-v créer par Loyam (V2)\ntu peux entrer des calcul décimaux de type x(+-*/)y ou des commendes (/help)"
 quel: .asciz "\n\tquel est ton calcul ?\t"
 syntaxe: .asciz "erreur de syntaxe taper /help pour les commendes"
 help: .asciz "/help"
 MChelp: .asciz "/help : affiche cette aide\n/stop : arrette le programe"
 stop: .asciz "/stop"
+#e==>/help	t==>/stop	i==>/historique		
 
 
 .global main
@@ -30,9 +31,10 @@ message:			#ecrit dans la console le text dans a2
 	ecall
 	ret
 
-résultat:			#affiche le résulta stocké dans s5
-	li a7,1
-	mv a0,s5
+résultat:			#affiche le résulta stocké dans fs2
+	fcvt.d.w ft0,zero	#affiche le résultat
+	fadd.d fa0,fs2,ft0	#affiche le résultat
+	li a7,3			#affiche le résultat
 	ecall
 	ret
 
@@ -80,7 +82,7 @@ pré_division:			#verifit si c'est une commend sinon envoit pour la division
 addition:			#additionnne si demandé par l'utilisateur
 	mv s2,a3		#met a3 dans s2 pour sauvgarder la position du signe
 	call s_c		#appelle s_c
-	add s5,s3,s4		#fait l'addition
+	fadd.d fs2,fs0,fs1	#fait l'addition
 	call résultat		#appelle résultat
 	j restart		#saut a restart
 
@@ -88,38 +90,61 @@ soustraction:			#soustrais si demandé par l'utilisateur
 	mv s2,a3		#cf addition
 	call s_c		#cf addition
 	li t1,-1		#prépart la soustraction en multipliant par -1 un terme
-	mul s4,s4,t1		#prépart la soustraction en multipliant par -1 un terme
-	add s5,s3,s4		#additionne 
+	fcvt.d.w ft1,t1
+	fmul.d fs1,fs1,ft1	#prépart la soustraction en multipliant par -1 un terme
+	fadd.d fs2,fs0,fs1		#additionne 
 	call résultat		#cf addition
 	j restart		#cf addition
 
 multiplication:			#multiplie si demandé par l'utilisateur
 	addi s2,a3,0		#cf addition
 	call s_c		#cf addition
-	mul s5,s3,s4		#multiplie les deux nombre
+	fmul.d fs2,fs0,fs1		#multiplie les deux nombre
 	call résultat		#cf addition
 	j restart		#cf addition
 
 division:			#divise si l'utilisateur le demende
 	mv s2,a3		#cf addition
 	call s_c		#cf addition
-	fcvt.d.w fs0,s3		#prépart la division en créen des flautante
-	fcvt.d.w fs1,s4		#prépart la division en créen des flautante
 	fdiv.d fs2,fs0,fs1	#divise
-	fcvt.d.w ft0,zero	#affiche le résultat
-	fadd.d fa0,fs2,ft0	#affiche le résultat
-	li a7,3			#affiche le résultat
-	ecall			#affiche le résultat
+	call résultat		#affiche le résultat
 	j restart		#cf addition
 
+exposant_prépa:			#met t0 a a0 a la puissance de a1
+	li t0,1
+	beq a1,zero,exit
+	mv t0,a0
+	blt a1,zero,exposant_neg
+	li t1,-1
+	j exposant_calcul
+exposant_neg:
+	li t1,-1
+	mul a1,a1,t1
+	li t1,1
+	mv t3,ra
+	call exposant_calcul
+	mv ra,t3
+	fcvt.d.w ft0,t0
+	li t1,1
+	fcvt.d.w ft1,t1
+	fdiv.d ft0,ft1,ft0
+	ret 
+exposant_calcul:
+	add a1,a1,t1
+	beq a1,zero,exit
+	mul t0,t0,a0
+	j exposant_calcul
+
 s_c:				#sépart se qu'il y a avant et après le signe 
+	li s6,0			#initialise s6 pour la position d'une possible point
 	sw ra,8(sp)		#sauvgarde l'adresse retour
 	mv a1,s2		#organise les variable pour pouvoir les mosifier (s2=position du signe)
 	mv a0,s0		#organise les variable pour pouvoir les mosifier (s0=sésit utilisateur)
 	li t3,0			#initialise un conteur
 	li a2,0			#initialise a2 qui contiendra la partie transformé en nombre
 	call convertie		#appelle convertie
-	li s6,0			#réinistalise la position
+	mv s6,s7		#enregistre la position d'une possible point
+	li s7,0			#réinistalise la position
 	mv s3,a2		#enregistre le résultat
 	li a2,0			#réinitialise a2 qui contiendra la partie transformé en nombre
 	addi a0,a0,1		#passe le signe qu'il ne faut pas transformé
@@ -127,12 +152,29 @@ s_c:				#sépart se qu'il y a avant et après le signe
 	mv a1,s1		#organise les variable pour pouvoir les mosifier (s1=longueur de la sesit utilisateur)
 	call convertie		#appelle convertie
 	mv s4,a2		#enregistre le résultat
+	j conv_cal_flaut
+
+conv_cal_flaut:
+	mv a1,s6
+	li a0,10
+	call exposant_prépa
+	fcvt.d.w fs0,s3
+	fcvt.d.w ft0,t0
+	fdiv.d fs0,fs0,ft0
+	mv a1,s7
+	call exposant_prépa
+	fcvt.d.w fs1,s4
+	fcvt.d.w ft0,t0
+	fdiv.d fs1,fs1,ft0
 	lw ra,8(sp)		#récupère l'adresse retour
 	ret			#vas a l'adresse retour
+	
 
 convertie:			#convertie ascii vers nombre
 	bge t3,a1,exit		#verifit si la sélection a convertir et fini appelle exit si oui
+	li t5,46		#verifit si le caractère et un point
 	lb t0,0(a0)		#récupère le caractère
+	beq t0,t5,point		#compare le caractère avec selui du point
 	li t1,10		#prépart le décalage du nombre déja convertie
 	mul a2,a2,t1		#décale le nombre
 	addi t0,t0,-48		#converti le caractère vers un chifre
@@ -140,6 +182,15 @@ convertie:			#convertie ascii vers nombre
 	addi t3,t3,1		#augmente e conteur de 1
 	addi a0,a0,1		#décale le caractère a convertire
 	j convertie		#recomence la boucle
+
+point:				#point
+	li t1,-1
+	addi t3,t3,1
+	mul t5,t3,t1
+	add t5,a1,t5
+	addi a0,a0,1
+	mv s7,t5
+	j convertie
 
 save_adresse:			#sauvegarde l'adresse retour dans l'emplacement mémoir contenue dans a2
 	sw ra,0(a2)
@@ -165,6 +216,14 @@ restart:			#prepare les variables puis relance
 	li s3,0
 	li s4,0
 	li s5,0
+	li s6,0
+	li s7,0
+	fcvt.d.w ft0,zero
+	fcvt.d.w ft1,zero
+	fcvt.d.w fs0,zero
+	fcvt.d.w fs1,zero
+	fcvt.d.w fs2,zero
+	fcvt.d.w fa0,zero
 	ret
 
 commende:			#gère les commende
