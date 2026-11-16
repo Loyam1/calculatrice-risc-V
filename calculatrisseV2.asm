@@ -1,9 +1,9 @@
 .data
-bienvenue: .asciz "\nbienvenue dans le programme calculatrice en risc-v créer par Loyam (V2)\ntu peux entrer des calcul décimaux de type x(+-*/)y ou des commendes (/help)"
+bienvenue: .asciz "\nbienvenue dans le programme calculatrice en risc-v créer par Loyam (V2)\ntu peux entrer des calculs décimaux de type x(+-*/^)y avec x et y positif"
 quel: .asciz "\n\tquel est ton calcul ?\t"
 syntaxe: .asciz "erreur de syntaxe taper /help pour les commendes"
 help: .asciz "/help"
-MChelp: .asciz "/help : affiche cette aide\n/stop : arrette le programe"
+MChelp: .asciz "/help : affiche cette aide\n/stop : arrette le programe\ntu peux entrer des calculs décimaux de type x(+-*/^)y avec x et y positif"
 stop: .asciz "/stop"
 #e==>/help	t==>/stop	i==>/historique		
 
@@ -13,6 +13,7 @@ stop: .asciz "/stop"
 
 main:
 	addi sp,sp,-28		#réserve de la mémoir
+	fcvt.d.w fs11,zero
 	la a0,bienvenue		#charge le text de bienvenue dans t0
 	call message		#appelle la fonction message
 	mv a2,sp
@@ -38,10 +39,10 @@ résultat:			#affiche le résulta stocké dans fs2
 	ecall
 	ret
 
-ecoute:				#écoute le calcule de l'utilisateur avec 16 octet max et le sauvegarde dans a0
-	addi a0, sp, 16
+ecoute:				#écoute le calcule de l'utilisateur avec 32 octet max et le sauvegarde dans a0
+	addi a0, sp, 12
 	li a7,8
-	li a1,16
+	li a1,32
 	ecall
 	ret
 
@@ -73,6 +74,8 @@ signe:				#verifit si le caractère dans a2 est un signe math si oui appelle la 
 	beq a2,t2,multiplication
 	li t2,47
 	beq a2,t2,pré_division
+	li t2,94
+	beq a2,t2,exposant
 	ret
 
 pré_division:			#verifit si c'est une commend sinon envoit pour la division
@@ -92,7 +95,7 @@ soustraction:			#soustrais si demandé par l'utilisateur
 	li t1,-1		#prépart la soustraction en multipliant par -1 un terme
 	fcvt.d.w ft1,t1
 	fmul.d fs1,fs1,ft1	#prépart la soustraction en multipliant par -1 un terme
-	fadd.d fs2,fs0,fs1		#additionne 
+	fadd.d fs2,fs0,fs1	#additionne 
 	call résultat		#cf addition
 	j restart		#cf addition
 
@@ -110,10 +113,21 @@ division:			#divise si l'utilisateur le demende
 	call résultat		#affiche le résultat
 	j restart		#cf addition
 
-exposant_prépa:			#met t0 a a0 a la puissance de a1
+exposant:
+	mv s2,a3
+	call s_c
+	fadd.d fa0,fs0,fs11
+	fcvt.w.d a1,fs1
+	call exposant_prépa
+	fadd.d fs2,ft0,fs11
+	call résultat
+	j restart
+
+exposant_prépa:			#met ft0 a fa0 a la puissance de a1
 	li t0,1
+	fcvt.d.w ft0,t0
 	beq a1,zero,exit
-	mv t0,a0
+	fadd.d ft0,fa0,fs11
 	blt a1,zero,exposant_neg
 	li t1,-1
 	j exposant_calcul
@@ -124,7 +138,6 @@ exposant_neg:
 	mv t3,ra
 	call exposant_calcul
 	mv ra,t3
-	fcvt.d.w ft0,t0
 	li t1,1
 	fcvt.d.w ft1,t1
 	fdiv.d ft0,ft1,ft0
@@ -132,7 +145,7 @@ exposant_neg:
 exposant_calcul:
 	add a1,a1,t1
 	beq a1,zero,exit
-	mul t0,t0,a0
+	fmul.d ft0,ft0,fa0
 	j exposant_calcul
 
 s_c:				#sépart se qu'il y a avant et après le signe 
@@ -157,14 +170,13 @@ s_c:				#sépart se qu'il y a avant et après le signe
 conv_cal_flaut:
 	mv a1,s6
 	li a0,10
+	fcvt.d.w fa0,a0
 	call exposant_prépa
 	fcvt.d.w fs0,s3
-	fcvt.d.w ft0,t0
 	fdiv.d fs0,fs0,ft0
 	mv a1,s7
 	call exposant_prépa
 	fcvt.d.w fs1,s4
-	fcvt.d.w ft0,t0
 	fdiv.d fs1,fs1,ft0
 	lw ra,8(sp)		#récupère l'adresse retour
 	ret			#vas a l'adresse retour
